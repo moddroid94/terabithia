@@ -89,65 +89,76 @@ class YtSclAPI:
         response = self.session.get(Track.url)
         return response.content
 
-    def _get_album_subslot(self, item):
+    def _get_album_variants(self, item):
         try:
             item = item["album"]
         except KeyError:
-            if item["playlist"] is not None:
+            if item.get("playlist") is not None:
                 item = item["playlist"]
             else:
                 item = item["genre"]
         return item
 
+    def _get_artists_items(self, responseItem):
+        if responseItem.get("artists") is not None:
+            artistlist = responseItem["artists"]
+        else:
+            artistlist = []
+        return artistlist
+
     def _get_tracklist_from_info(self, info) -> list[TrackItemSlot]:
         resultTracks = []
-        # key "_type" seems not accessible? getting keyError.
+        # key "_type" seems not accessible? getting keyError or None.
         if info.get("entries"):
             for responseItem in info["entries"]:
-                if responseItem["artists"] is not None:
-                    artistlist = responseItem["artists"]
-                else:
-                    artistlist = ["unknown"]
-                if responseItem.get("artist") is not None:
-                    artistslot = responseItem.get("artist")
-                else:
-                    artistslot = ["unknown"]
                 resultTracks.append(
                     TrackItemSlot(
                         id=responseItem["id"],
                         title=responseItem["title"],
                         duration=responseItem["duration"],
-                        url=responseItem[
-                            "original_url"
-                        ],  # this is not the file url, but the page one, for yt-dlp
-                        artist=_artist_subslot(artistslot[0]),
-                        artists=[_artist_subslot(i) for i in artistlist],
-                        album=_album_subslot(self._get_album_subslot(responseItem)),
+                        url=responseItem["original_url"],
+                        artist=_artist_subslot(
+                            responseItem["artist"]
+                            if responseItem.get("artist") is not None
+                            else "unknown"
+                        ),
+                        artists=[
+                            _artist_subslot(i)
+                            for i in self._get_artists_items(responseItem)
+                        ],
+                        album=_album_subslot(self._get_album_variants(responseItem)),
                         thumbnail=responseItem["thumbnail"],
-                        trackinfoslot=self.get_track_manifest(responseItem),
+                        trackinfoslot=TrackInfoSlot(
+                            trackId=responseItem["id"],
+                            codec="mp3",  # we don't have known used coded here, for now is hardcoded as is the only output format.
+                            url=responseItem["url"],
+                        ),
                     )
                 )
         else:
             responseItem = info
-            if responseItem["artists"] is not None:
-                artistlist = responseItem["artists"]
-            else:
-                artistlist = ["unknown"]
-            if responseItem.get("artist") is not None:
-                artistslot = responseItem.get("artist")
-            else:
-                artistslot = ["unknown"]
             resultTracks.append(
                 TrackItemSlot(
                     id=responseItem["id"],
                     title=responseItem["title"],
                     duration=responseItem["duration"],
-                    url=responseItem["url"],
-                    artist=_artist_subslot(artistslot[0]),
-                    artists=[_artist_subslot(i) for i in artistlist],
-                    album=_album_subslot(self._get_album_subslot(responseItem)),
+                    url=responseItem.get("original_url"),
+                    artist=_artist_subslot(
+                        responseItem["artist"]
+                        if responseItem.get("artist") is not None
+                        else "unknown"
+                    ),
+                    artists=[
+                        _artist_subslot(i)
+                        for i in self._get_artists_items(responseItem)
+                    ],
+                    album=_album_subslot(self._get_album_variants(responseItem)),
                     thumbnail=responseItem["thumbnail"],
-                    trackinfoslot=self.get_track_manifest(responseItem),
+                    trackinfoslot=TrackInfoSlot(
+                        trackId=responseItem["id"],
+                        codec="mp3",  # we don't have known used coded here, for now is hardcoded as is the only output format.
+                        url=responseItem["url"],
+                    ),
                 )
             )
         return resultTracks

@@ -104,7 +104,7 @@ def fetchhifi(playlist):
 
     # get candidate tracks from api
     candidateList = metaApi.api.get_candidates(playlist)
-
+    trackList = []
     # matches candidates to available tracks
     for i in candidateList:
         time.sleep(4)
@@ -270,7 +270,8 @@ def fetchscl(playlist):
                 e,
                 exc_info=True,
             )
-
+        if idx > playlist["quantity"]:
+            break
     # write m3u8 playlist file to disk
     with open(
         f"output/playlists/{playlist['name']}.m3u8",
